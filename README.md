@@ -18,9 +18,39 @@ Peter Zhu 02570810
 
 The objective of this coursework is to:
 
-1. Identify a physical phenomenon described by differential equations. - we chose ()
-2. Formulate the governing equations and boundary/initial conditions. - see (filename) or report.docx
-3. Select an appropriate numerical method. - we chose ()
+1. Identify a physical phenomenon described by differential equations.
+
+    we chose (membrane on speaker), use wave equation.
+
+2. Formulate the governing equations and boundary/initial conditions.
+
+    The wave equation in cylindrical coordinates:
+
+    ∂²u/∂t² = c²(∂²u/∂r² + (1/r)∂u/∂r + (1/r²)∂²u/∂θ²) + q(r,θ,t)/ρₛ
+
+    where:
+    - u is displacement, 
+    - c = √(T/ρₛ) is the membrane wave speed
+    - T is the membrane tension per unit length
+    - ρₛ is the surface mass density
+    - q(r,θ,t) is the external distributed forcing from the voice coil / air loading
+
+    Boundary conditions: 
+
+    1, At the outer rim r=R: clamped edge
+    u(R, θ, t) = 0 for all θ and t.
+
+    2, At the centre r=0: the solution must remain finite and smooth. 
+    ∂u​(0, θ, t)/∂r  = 0. ∂v​(0, θ, t)/∂r  = 0. 
+
+未完成，此后所有信息请参考report.docx
+未完成，此后所有信息请参考report.docx
+未完成，此后所有信息请参考report.docx
+
+3. Select an appropriate numerical method.
+
+    explicit finite difference method
+
 4. Derive the discretised form of the equations. 
 5. Implement the numerical solver in Python.
 6. Visualise and analyse the results.
