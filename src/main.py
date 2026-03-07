@@ -49,6 +49,6 @@ def main():
     print(f"Saved: {line_path}")
 
 
-# if __name__ == "__main__":
-main()
+if __name__ == "__main__":
+    main()
 
