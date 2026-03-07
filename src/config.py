@@ -4,7 +4,7 @@
 def default_parameters():
     """Return default simulation parameters."""
     return {
-        "R": 0.1,  # membrane radius [m]
+        "R": 0.6,  # membrane radius [m]
         "n_r": 80,  # number of radial grid points (includes clamped edge)
         "n_theta": 180,  # number of angular grid points
         "dt": 1.0e-6,  # time step [s]
