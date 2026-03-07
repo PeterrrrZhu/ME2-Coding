@@ -7,8 +7,8 @@ def default_parameters():
         "R": 0.02,  # membrane radius [m]
         "n_r": 20,  # number of radial grid points (includes clamped edge)
         "n_theta": 30,  # number of angular grid points
-        "dt": 1e-7,  # time step [s]
-        "t_end": 0.01,  # end time [s]
+        "dt": 1e-6,  # time step [s]
+        "t_end": 0.02,  # end time [s]
         "save_every": 100,  # save one snapshot every N steps
         "T":100.0,  # membrane tension per unit length [N/m]
         "rho_s": 0.35,  # surface density [kg/m^2]

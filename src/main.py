@@ -7,7 +7,7 @@ import numpy as np
 from src.config import default_parameters
 from src.plotting import ensure_output_dir, plot_center_history, plot_contour_snapshot, plot_surface_snapshot
 from src.solver_free_vibration import run_simulation
-
+from src.Fourier_Transform import Transform
 
 def validate_results_for_plotting(results, growth_factor_limit=1.0e4):
     """Validate solver output before writing figures."""
@@ -75,6 +75,7 @@ def main():
     print(f"Saved: {surface_path}")
     print(f"Saved: {line_path}")
 
+    Transform(results["u_history"], results["r"].shape[0], params["dt"])
 
 if __name__ == "__main__":
     main()

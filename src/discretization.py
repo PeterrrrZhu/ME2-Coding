@@ -14,7 +14,7 @@ def create_polar_grid(R, n_r, n_theta):
 
     dr = R / n_r
     dtheta = 2.0 * np.pi / n_theta
-    r = (np.arange(n_r) + 1) * dr
+    r = (np.arange(n_r) + 2) * dr
     theta = np.arange(n_theta) * dtheta
     return r, theta, dr, dtheta
 
