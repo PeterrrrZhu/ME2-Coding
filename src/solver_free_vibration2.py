@@ -2,7 +2,7 @@
 
 import numpy as np
 from src.config import add_derived_parameters
-from src.discretization_free_vibration import (
+from src.discretization_free_vibration2 import (
     compute_laplacian_polar,
     create_polar_grid,
     create_u_history
