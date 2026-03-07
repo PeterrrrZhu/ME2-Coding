@@ -1,0 +1,51 @@
+ME2 Computing - Coursework assignment
+
+Learning outcomes:
+
+Being able to identify differential equations for a physical problem.
+
+Being able to choose an appropriate method to solve numerically the differential equations.
+
+Being able to implement and code the numerical method.
+
+Being able to integrate various topics about numerical analysis.
+
+This CW has to be done in groups of two students, of your choice, submitting both the same single report (with consequent common mark).
+
+Outcomes:
+
+One single Jupiter Python file (template is on BB). Name your file as CID.ipynb
+
+A short summary of the work done (template is on BB). Word counting: max 1000
+(Maths formulas do not count towards word counting).
+
+Deadline: Mon 23th of March 2026 at midday.
+
+Tasks:
+
+Choose a physics described by a differential equation, from any of the ME1/ME2 modules you have encountered till now or from any Physics of your choice (even outside Mech. Eng. domain).
+
+Differential equations requirements:
+
+a) A PDE with three independent variables, i.e. three spatial (x,y,z) or one time and two spatial (t,x,y). It does not need to be in Cartesian coordinates.
+Note: the heat equation is not accepted, unless you are going to use an implicit numerical method to solve it,
+
+OR
+
+b) A set of ODEs of second order or higher. Examples done in the class are not accepted,
+
+OR
+
+c) An ODE of third order or higher. Blasius equation is not accepted.
+
+Set the boundary conditions/initial values for the event you wish to analyse. Exploit any symmetries, if applicable.
+
+Choose a numerical method, amongst the ones taught in the course, to solve numerically your differential equation.
+
+Derive the discretized form of the differential equation, according to the numerical method chosen. Use the same notation adopted in the slides (either Maths or Computing).
+
+Implement your numerical discretised equation by using Python.
+
+Plot the results by adopting at least three possible types of plotting.
+
+Add and link to the previous analysis another topic studied in ME2 Computing, of your choice, i.e. numerical integration, numerical differentiation, numerical interpolation, Fourier analysis, unstructured grid domains, etc. This addition can be done at post-processing stage (once the numerical solutions of the differential equation are obtained) or integrated with the main analysis.
