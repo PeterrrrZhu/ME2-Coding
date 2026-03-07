@@ -4,13 +4,13 @@
 def default_parameters():
     """Return default simulation parameters."""
     return {
-        "R": 0.6,  # membrane radius [m]
-        "n_r": 80,  # number of radial grid points (includes clamped edge)
-        "n_theta": 180,  # number of angular grid points
-        "dt": 1.0e-6,  # time step [s]
+        "R": 0.02,  # membrane radius [m]
+        "n_r": 20,  # number of radial grid points (includes clamped edge)
+        "n_theta": 30,  # number of angular grid points
+        "dt": 1e-7,  # time step [s]
         "t_end": 0.01,  # end time [s]
-        "save_every": 20,  # save one snapshot every N steps
-        "T": 120.0,  # membrane tension per unit length [N/m]
+        "save_every": 100,  # save one snapshot every N steps
+        "T":100.0,  # membrane tension per unit length [N/m]
         "rho_s": 0.35,  # surface density [kg/m^2]
         "q0": 3.0,  # forcing amplitude [N/m^2]
         "sigma": 0.015,  # forcing radial width [m]

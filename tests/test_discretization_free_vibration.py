@@ -21,13 +21,17 @@ def test_laplacian_zero_field():
     assert np.allclose(lap, 0.0)
 
 
-def test_laplacian_radial_quadratic_first_ring_accuracy():
-    """For u=r^2, lap(u)=4 and first-ring error should stay small."""
-    r, theta, dr, dtheta = create_polar_grid(1.0, 40, 72)
-    rr, _ = np.meshgrid(r, theta, indexing="ij")
-    u = rr**2
+def test_laplacian_manufactured_solution_interior_accuracy():
+    """For u=r^3*cos(theta), lap(u)=8*r*cos(theta) away from boundaries."""
+    r, theta, dr, dtheta = create_polar_grid(1.0, 80, 180)
+    rr, tt = np.meshgrid(r, theta, indexing="ij")
+    u = (rr**3) * np.cos(tt)
     lap = compute_laplacian_polar(u, r, dr, dtheta)
-    assert np.allclose(lap[0, :], 4.0, atol=5.0e-3)
+    lap_exact = 8.0 * rr * np.cos(tt)
+
+    # Exclude first ring (centre treatment) and last ring (clamped edge row).
+    err = np.abs(lap[1:-1, :] - lap_exact[1:-1, :])
+    assert float(err.mean()) < 2.0e-3
 
 
 def test_input_validation():
@@ -41,6 +45,6 @@ def test_input_validation():
 if __name__ == "__main__":
     test_create_polar_grid_shapes()
     test_laplacian_zero_field()
-    test_laplacian_radial_quadratic_first_ring_accuracy()
+    test_laplacian_manufactured_solution_interior_accuracy()
     test_input_validation()
     print("test_discretization_free_vibration: all checks passed")

@@ -62,9 +62,52 @@ def test_run_simulation_raises_for_zero_initial_amplitude():
         run_simulation(parameters)
 
 
+def test_run_simulation_raises_for_unstable_time_step():
+    parameters = {
+        "R": 0.02,
+        "n_r": 80,
+        "n_theta": 36,
+        "dt": 1.0e-4,
+        "t_end": 1.0e-3,
+        "save_every": 10,
+        "T": 100.0,
+        "rho_s": 0.15,
+        "q0": 0.0,
+        "sigma": 0.015,
+        "omega": 2.0 * np.pi * 400.0,
+        "initial_u_amp": 1.0e-3,
+        "initial_u_width": 0.02,
+    }
+    with np.testing.assert_raises(ValueError):
+        run_simulation(parameters)
+
+
+def test_run_simulation_final_snapshot_matches_t_end_state():
+    parameters = {
+        "R": 0.2,
+        "n_r": 20,
+        "n_theta": 36,
+        "dt": 1.0e-6,
+        "t_end": 1.3e-4,
+        "save_every": 50,
+        "T": 120.0,
+        "rho_s": 0.35,
+        "q0": 0.0,
+        "sigma": 0.015,
+        "omega": 2.0 * np.pi * 400.0,
+        "initial_u_amp": 1.0e-3,
+        "initial_u_width": 0.02,
+    }
+    results = run_simulation(parameters)
+    assert np.isclose(results["snapshot_times"][-1], parameters["t_end"])
+    assert np.allclose(results["snapshots"][-1], results["u_history"][:, :, -1])
+
+
 if __name__ == "__main__":
     test_boundary_condition_clamped_rim()
     test_initialize_state_parabolic_profile()
     test_run_simulation_nonzero_initial_amplitude_gives_nonzero_response()
     test_run_simulation_raises_for_zero_initial_amplitude()
+    test_run_simulation_raises_for_unstable_time_step()
+    test_run_simulation_final_snapshot_matches_t_end_state()
     print("test_solver_free_vibration: all checks passed")

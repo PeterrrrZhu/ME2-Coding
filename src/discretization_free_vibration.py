@@ -16,7 +16,7 @@ def create_polar_grid(R, n_r, n_theta):
     dtheta = 2.0 * np.pi / n_theta
 
     # Shift by one radial step so we avoid the singular point r = 0.
-    r = (np.arange(n_r) + 1) * dr
+    r = (np.arange(n_r) + 1) * dr #Avoid r=0
     theta = np.arange(n_theta) * dtheta
     return r, theta, dr, dtheta
 
@@ -41,8 +41,8 @@ def compute_laplacian_polar(u, r, dr, dtheta):
     # u_tt     ~ (u[i,j+1] - 2*u[i,j] + u[i,j-1]) / dtheta^2
     # lap[i,j] = u_rr + (1/r_i) u_r + (1/r_i^2) u_tt
     #
-    # At the first ring (i = 0), use one-sided second-order radial formulas
-    # to reduce near-centre truncation error.
+    # At the first ring (i = 0), use a symmetry-based ghost treatment.
+    # This enforces du/dr = 0 at r = 0 in a simple, stable way for long free-vibration runs.
     if u.ndim != 2:
         raise ValueError("u must be a 2D array with shape (n_r, n_theta).")
     if dr <= 0.0 or dtheta <= 0.0:
@@ -62,14 +62,11 @@ def compute_laplacian_polar(u, r, dr, dtheta):
             d2u_dtheta2 = (u[i, j_plus] - 2.0 * u[i, j] + u[i, j_minus]) / (dtheta**2)
 
             if i == 0:
-                if n_r >= 4:
-                    du_dr = (-3.0 * u[i, j] + 4.0 * u[i + 1, j] - u[i + 2, j]) / (2.0 * dr)
-                    d2u_dr2 = (
-                        2.0 * u[i, j] - 5.0 * u[i + 1, j] + 4.0 * u[i + 2, j] - u[i + 3, j]
-                    ) / (dr**2)
-                else:
-                    du_dr = (u[i + 1, j] - u[i, j]) / dr
-                    d2u_dr2 = (u[i + 2, j] - 2.0 * u[i + 1, j] + u[i, j]) / (dr**2)
+                # Mirror across the centreline: ghost value equals the next interior value.
+                # This gives du/dr = 0 at the centre for axisymmetric regularity.
+                u_im1 = u[i + 1, j]
+                du_dr = (u[i + 1, j] - u_im1) / (2.0 * dr)
+                d2u_dr2 = (u[i + 1, j] - 2.0 * u[i, j] + u_im1) / (dr**2)
             else:
                 du_dr = (u[i + 1, j] - u[i - 1, j]) / (2.0 * dr)
                 d2u_dr2 = (u[i + 1, j] - 2.0 * u[i, j] + u[i - 1, j]) / (dr**2)
