@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from src.discretization import compute_laplacian_polar, create_polar_grid, forcing_center_gaussian
+from src.discretization import compute_laplacian_polar, create_polar_grid, create_u_history, forcing_center_gaussian
 
 
 def test_create_polar_grid():
@@ -27,8 +27,14 @@ def test_laplacian_zero_field():
     assert np.allclose(lap, 0.0)
 
 
+def test_u_history_shape():
+    u_history = create_u_history(10, 20, 30)
+    assert u_history.shape == (10, 20, 31)
+
+
 if __name__ == "__main__":
     test_create_polar_grid()
     test_forcing_shape()
     test_laplacian_zero_field()
+    test_u_history_shape()
     print("test_discretization: all checks passed")
