@@ -15,7 +15,7 @@ def default_parameters():
         "q0": 3.0,  # forcing amplitude [N/m^2]
         "sigma": 0.015,  # forcing radial width [m]
         "omega": 2.0 * 3.141592653589793 * 400.0,  # forcing angular frequency [rad/s]
-        "initial_u_amp": 0.0,  # optional free-vibration seed
+        "initial_u_amp": 1.0e-3,  # free-vibration initial amplitude [m]
         "initial_u_width": 0.02,
     }
 

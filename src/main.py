@@ -4,7 +4,7 @@ from pathlib import Path
 
 from src.config import default_parameters
 from src.plotting import ensure_output_dir, plot_center_history, plot_contour_snapshot, plot_surface_snapshot
-from src.solver import run_simulation
+from src.solver_free_vibration import run_simulation
 
 
 def main():
