@@ -75,7 +75,7 @@ def main():
     print(f"Saved: {surface_path}")
     print(f"Saved: {line_path}")
 
-    Transform(results["u_history"], results["r"].shape[0], params["dt"])
+    Transform(results["u_history"], results["r"].shape[0], params["dt"], output_dir)
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
-def Transform(u_history,n_r, dt):
+def Transform(u_history, n_r, dt, output_dir="outputs"):
     #u_history = Result["u_history"]
     #n_r = u_history.shape[0]
     #dt = default_parameters()["dt"]
@@ -17,7 +18,6 @@ def Transform(u_history,n_r, dt):
     r_idx = n_r // 2 
     theta_idx = 0 
 
-    print(123) #testing line
     # Extract the displacement over time at this specific (r, theta) location
     # shape: (n_steps + 1,)
     time_signal = u_history[r_idx, theta_idx, :]
@@ -49,8 +49,10 @@ def Transform(u_history,n_r, dt):
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Amplitude')
     plt.grid(True)
-    plt.savefig("outputs/fourier_spectrum.png", dpi=150)
-    print("Fourier plot successfully saved to outputs/fourier_spectrum.png")
+    output_path = Path(output_dir) / "fourier_spectrum.png"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150)
+    print(f"Fourier plot successfully saved to {output_path}")
     
     plt.close() # Release memory by closing the plot after saving
 
