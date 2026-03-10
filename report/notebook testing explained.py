@@ -32,7 +32,7 @@ n_r = 20  # number of radial grid points (includes clamped edge)
 # 定义角向网格点数 n_theta（theta 方向离散点个数）。
 n_theta = 30  # number of angular grid points
 # 定义时间步长 dt，单位 s。
-dt = 1e-7  # time step [s]
+dt = 1e-6  # time step [s]
 # 定义总模拟时长 t_end，单位 s。
 t_end = 0.01  # end time [s]
 # 每隔多少个 time steps 保存一个 snapshot。
@@ -338,6 +338,145 @@ if final_max > growth_factor_limit * baseline:
 # 读取最终快照的时间用于图标题显示。
 final_t = snapshot_times[-1]
 
+
+#这一段是傅里叶变化的代码， 在Jupyter Notebook中放在post-processing里
+#定义 DFT 函数，接收参数 yn，也就是 time domain 下的离散信号 (discrete signal)。(这个函数来自Session 9的示例)
+def DFT(yn):
+    # 获取输入信号 yn 的长度 N，代表总共有多少个时间采样点。
+    N = len(yn)
+
+    # 计算基频的角频率步长 (fundamental angular step size) w。
+    # 对应数学公式中的 omega = 2*pi / N。
+    w = 2 * np.pi / N
+
+    # 创建一个长度为 N 的一维 array，数据类型为 complex (复数)。
+    # 傅里叶变换的结果包含实部和虚部 (real and imaginary parts)，分别对应波的 amplitude（幅值）和 phase（相位）。
+    # np.zeros 会将它们全部初始化为 0 + 0j。
+    FTk = np.zeros(N, dtype=complex)
+
+    # 外层 for 循环：遍历所有的频率索引 k (从 0 到 N-1)。
+    for k in range(0, N):
+        
+        # 内层 for 循环：对于每一个频率 k，遍历所有的时间索引 n (从 0 到 N-1)。
+        for n in range(0, N):
+            
+            # 这是 DFT 的核心数学公式：X_k = sum( x_n * e^(-i * k * w * n) )。
+            # 在 Python 中，1j 代表数学中的虚数单位 i。
+            # np.exp() 计算自然常数 e 的指数。
+            # 这一行将当前时间点 n 经过旋转因子运算后的值，累加到当前频率 k 的结果变量 FTk[k] 中。
+            FTk[k] += np.exp(-1j * k * w * n) * yn[n]
+            
+    # 双重循环结束后，返回装满频域复数数据的 array FTk。
+    return FTk
+
+#定义包装函数 Transform
+def Transform(u_history, n_r, dt, output_dir="outputs"):
+    # --- 1. Select an observation point (选择观察点) ---
+
+    # 我们需要在膜上选一个点来观察它的振动。这里选择半径中点。
+    # // 是 Python 中的整数除法 (integer division)，比如 21 // 2 结果是 10。
+    # array 的索引 (index) 必须是整数，所以不能用单斜杠 /。
+    r_idx = n_r // 2 
+
+    # 选择角度方向的第一个索引 (theta = 0 的位置)。
+    theta_idx = 0 
+
+    # 从三维矩阵 u_history 中提取这一个空间点在所有时间步的数据。
+    # 语法 [r_idx, theta_idx, :] 中的冒号 ':' 表示“提取这一个维度上的所有数据”。
+    # 提取出来的 time_signal 是一个一维 array，相当于这个点的位移-时间曲线。
+    time_signal = u_history[r_idx, theta_idx, :]
+
+    # --- 2. Perform Temporal Discrete Fourier Transform (执行时域离散傅里叶变换) ---
+
+    # 计算提取出来的时域信号的总点数 N。
+    N = len(time_signal)
+
+    # 打印提示信息。因为 O(N^2) 的自定义 DFT 很慢，这行字可以让你知道程序没死机，只是在狂算。
+    print(f"Starting DFT calculation for {N} points. Please wait, this might take a moment...")
+
+    # 调用上面定义的老师的 DFT 函数，将时域信号 time_signal 转化为频域信号 u_fft。
+    # u_fft 里面现在全都是 complex numbers (复数)。
+    u_fft = DFT(time_signal)
+
+    # 我们通常只关心振动幅度 (amplitude)，不关心相位。np.abs() 可以计算复数的模长 (magnitude/absolute value)。
+    # 为什么只取前半部分 [:N // 2]？
+    # 根据奈奎斯特采样定理 (Nyquist theorem)，对于实数信号，DFT 的后半段只是前半段的对称镜像，没有新的物理意义。
+    u_amplitude = np.abs(u_fft[:N // 2]) 
+
+    # --- 3. Frequency Mapping (频率轴映射) ---
+
+    # 计算采样频率 (sampling frequency) fs。
+    # 它等于时间步长 dt 的倒数 (1 / dt)。代表在模拟中，现实时间的每一秒钟我们采样了多少次。
+    fs = 1.0 / dt 
+
+    # 生成画图用的 x 轴坐标 (频率，单位 Hz)。
+    # np.linspace(起点, 终点, 数量) 用于生成等差数列。
+    # 频率范围从 0 到 奈奎斯特频率 (fs / 2)，总共生成 N // 2 个点，与上面的幅值 array 一一对应。
+    freq_axis = np.linspace(0, fs / 2, N // 2)
+
+    # --- 4. Visualization (数据可视化) ---
+
+    # 创建一个 matplotlib 的 Figure 对象，也就是画板，设置尺寸为宽 10 英寸，高 5 英寸。
+    plt.figure(figsize=(10, 5))
+
+    # 在画板上绘制折线图 (line plot)。x 轴是刚刚生成的频率，y 轴是对应的振幅。
+    plt.plot(freq_axis, u_amplitude,label='Frequency Spectrum',linewidth=1.5)
+
+    # 给图表添加标题，标题中用到 f-string 把刚才选取的网格点索引动态打印上去。
+    plt.title(rf'Frequency Spectrum at $r$={r_idx}, $\theta$={theta_idx}')
+
+    # 限制 x 轴的显示范围为 0 到 1000 Hz。
+    # 这是因为波的能量通常集中在低频的固有频率 (natural frequencies) 上，高频部分通常是数值噪音 (numerical noise)。
+    plt.xlim(0, 1000)
+
+    # 设置 x 轴和 y 轴的文字标签。
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Amplitude')
+
+    # 开启背景网格线 (grid)，方便读数。
+    plt.grid(True)
+
+    # --- 5. Find and Print Dominant Frequency (寻找并打印主频) ---
+
+    # 找到振幅数组中最大值的索引 (Index)
+    dominant_idx = np.argmax(u_amplitude)
+
+    # 根据索引在频率轴数组中找到对应的频率值
+    dominant_freq = freq_axis[dominant_idx]
+
+    # 在图上画一个红色的点标记出最高峰
+    plt.scatter(dominant_freq, u_amplitude[dominant_idx], color='red', zorder=5)
+    # 添加垂直虚线 (Vertical line)
+    plt.axvline(x=dominant_freq, color='red', linestyle='--', alpha=0.7, 
+                label=rf'Dominant Frequency: {dominant_freq:.2f} Hz')
+    
+    #设置图例
+    plt.legend(loc='upper right')
+
+    # 打印结果
+    print(f"Dominant Frequency: {dominant_freq:.2f} Hz")
+    print(f"Peak Amplitude: {u_amplitude[dominant_idx]:.4f}")
+
+    # --- 6. 保存文件 ---
+
+    # 使用 Path 对象拼接输出文件夹和文件名。跨平台兼容性好，斜杠 / 被自动处理。
+    output_path = Path(output_dir) / "fourier_spectrum_dft.png"
+
+    # 检查输出目录是否存在。如果不存在，parents=True 允许连同父目录一起创建，exist_ok=True 保证如果目录已有不报错。
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 将刚刚画好的图表保存为图片，设置分辨率 (dpi) 为 150，保证图片清晰度。
+    plt.savefig(output_path, dpi=150)
+
+    # 在终端打印保存成功的提示和路径。
+    print(f"Fourier plot successfully saved to {output_path}")
+
+    # 使用 plt.close() 关闭当前的 Figure。
+    # 这一步在循环或者大量作图时极其重要，可以释放计算机内存 (release memory)。
+    plt.close()
+
+#调用傅里叶变换函数
+Transform(u_history, n_r, dt)
 
 # %%
 # 这一段负责把计算结果可视化并保存成图片。
