@@ -3,6 +3,7 @@
 # 2) 使用 explicit finite difference + central difference in time 推进位移 u(r, theta, t)；
 # 3) 对稳定性做 CFL-like 检查，对结果做 NaN/Inf 与幅值增长检查；
 # 4) 输出最终时刻的 contour、3D surface、以及中心点位移时程图。
+# 5) 加入Fourier Transform功能 by Terry
 
 # %%
 # 这一段导入脚本需要的标准库和第三方库。
@@ -17,7 +18,6 @@ import numpy as np
 
 # 设置 matplotlib 后端为 Agg（非交互后端），便于在脚本环境直接保存图片。
 '''似乎没有学过'''
-matplotlib.use("Agg")
 # 导入 pyplot，用于画图 API。
 import matplotlib.pyplot as plt
 
@@ -28,13 +28,14 @@ import matplotlib.pyplot as plt
 # 定义圆形 membrane 半径 R，单位 m。
 R = 0.02  # membrane radius [m]
 # 定义径向网格点数 n_r（包含 clamped 边界点）。
-n_r = 20  # number of radial grid points (includes clamped edge)
+n_r = 60  # number of radial grid points (includes clamped edge)
 # 定义角向网格点数 n_theta（theta 方向离散点个数）。
 n_theta = 30  # number of angular grid points
 # 定义时间步长 dt，单位 s。
 dt = 1e-6  # time step [s]
 # 定义总模拟时长 t_end，单位 s。
-t_end = 0.01  # end time [s]
+# CHANGE 1: increase total simulation time to improve frequency resolution (df = 1 / t_end).
+t_end = 0.05  # end time [s]
 # 每隔多少个 time steps 保存一个 snapshot。
 save_every = 100  # save one snapshot every N steps
 # 定义膜张力（单位长度）T，单位 N/m。
@@ -42,15 +43,11 @@ T = 100.0  # membrane tension per unit length [N/m]
 # 定义面密度 rho_s，单位 kg/m^2。
 rho_s = 0.35  # surface density [kg/m^2]
 # 定义外载幅值 q0（本脚本中未实际进入推进公式）。
-q0 = 3.0  # forcing amplitude [N/m^2]
 # 定义外载径向宽度 sigma（本脚本中未实际使用）。
-sigma = 0.015  # forcing radial width [m]
 # 定义外载角频率 omega（本脚本中未实际使用）。
-omega = 2.0 * 3.141592653589793 * 400.0  # forcing angular frequency [rad/s]
 # 定义初始位移幅值 initial_u_amp，单位 m。
 initial_u_amp = 1.0e-3  # free-vibration initial amplitude [m]
 # 定义初始位移宽度 initial_u_width（本脚本中未实际使用）。
-initial_u_width = 0.02
 
 # 由物理参数推导波速 c = sqrt(T / rho_s)，对应 membrane wave equation 的传播速度。
 c = (T / rho_s) ** 0.5
@@ -439,7 +436,11 @@ def Transform(u_history, n_r, dt, output_dir="outputs"):
     # --- 5. Find and Print Dominant Frequency (寻找并打印主频) ---
 
     # 找到振幅数组中最大值的索引 (Index)
-    dominant_idx = np.argmax(u_amplitude)
+    # CHANGE 2: ignore DC component when searching the dominant oscillation frequency.
+    search_amplitude = u_amplitude.copy()
+    if len(search_amplitude) > 0:
+        search_amplitude[0] = 0.0
+    dominant_idx = np.argmax(search_amplitude)
 
     # 根据索引在频率轴数组中找到对应的频率值
     dominant_freq = freq_axis[dominant_idx]
@@ -514,7 +515,11 @@ line_path = output_dir / "center_history.png"
 
 # Contour plot
 # 生成二维网格：theta_grid 与 r_grid。
-theta_grid, r_grid = np.meshgrid(theta, r)
+# CHANGE 4: close theta periodically (append theta=2pi and duplicate the first column of final_u)
+# so contour/surface do not show a wedge gap at the seam.
+theta_closed = np.append(theta, theta[0] + 2.0 * np.pi)
+final_u_closed = np.hstack((final_u, final_u[:, :1]))
+theta_grid, r_grid = np.meshgrid(theta_closed, r)
 # polar -> Cartesian: x = r cos(theta)。
 x = r_grid * np.cos(theta_grid)
 # polar -> Cartesian: y = r sin(theta)。
@@ -523,7 +528,7 @@ y = r_grid * np.sin(theta_grid)
 # 创建 2D Figure 和 Axes。
 fig, ax = plt.subplots(figsize=(6, 5))
 # 画 filled contour，levels=40，色图 viridis。
-contour = ax.contourf(x, y, final_u, levels=40, cmap="viridis")
+contour = ax.contourf(x, y, final_u_closed, levels=40, cmap="viridis")
 # 添加 colorbar，标注位移单位。
 fig.colorbar(contour, ax=ax, label="u [m]")
 # 设定 x/y 等比例，保持圆形外观不失真。
@@ -547,7 +552,7 @@ fig = plt.figure(figsize=(7, 5))
 # 添加 3D 坐标轴。
 ax = fig.add_subplot(111, projection="3d")
 # 绘制位移曲面 z = final_u。
-ax.plot_surface(x, y, final_u, cmap="plasma", linewidth=0.0, antialiased=True)
+ax.plot_surface(x, y, final_u_closed, cmap="plasma", linewidth=0.0, antialiased=True)
 # 设置标题。
 ax.set_title(f"Membrane displacement surface at t={final_t:.4f} s")
 # 设置 x 轴标签。
