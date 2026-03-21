@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 """[2] Parameters"""
 
 R = 0.02
-n_r = 80
+n_r = 60 #Change from 80 to 60 for faster testing
 n_theta = 30
 dt = 1e-6
 t_end = 0.05
@@ -89,12 +89,8 @@ if c < 0.0:
 if c == 0.0:
     dt_max = np.inf
 else:
-    safety_factor = 0.2
-    if safety_factor <= 0.0 or safety_factor > 1.0:
-        raise ValueError("safety_factor must be in (0, 1].")
     inverse_spacing_sq = (1.0 / (dr**2)) + (1.0 / ((r[0] * dtheta) ** 2))
-    dt_cfl = 1.0 / (c * np.sqrt(inverse_spacing_sq))
-    dt_max = safety_factor * dt_cfl
+    dt_max = 1.0 / (c * np.sqrt(inverse_spacing_sq))
 if dt > dt_max:
     raise ValueError(
         f"Unstable time step for explicit scheme: dt={dt:.3e}, "
@@ -163,12 +159,17 @@ def Transform(u_history, n_r, dt, output_dir="outputs"):
 
     r_idx = n_r // 2
     theta_idx = 0
-    time_signal = u_history[r_idx, theta_idx, :]
+    raw_time_signal = u_history[r_idx, theta_idx, :]
+    #Downsample the time signal for faster DFT calculation, by a factor of 50.
+    downsample_factor = 50
+    time_signal = raw_time_signal[::downsample_factor]
+    dt_new = dt * downsample_factor
+
     N = len(time_signal)
     print(f"Starting DFT calculation for {N} points. Please wait, this might take a moment...")
     u_fft = DFT(time_signal)
     u_amplitude = np.abs(u_fft[:N // 2])
-    fs = 1.0 / dt
+    fs = 1.0 / dt_new
     freq_axis = np.linspace(0, fs / 2, N // 2)
     plt.figure(figsize=(10, 5))
     plt.plot(freq_axis, u_amplitude,label='Frequency Spectrum',linewidth=1.5)
@@ -188,15 +189,12 @@ def Transform(u_history, n_r, dt, output_dir="outputs"):
     plt.legend(loc='upper right')
     print(f"Dominant Frequency: {dominant_freq:.2f} Hz")
     print(f"Peak Amplitude: {u_amplitude[dominant_idx]:.4f}")
-    output_path = Path(output_dir) / "fourier_spectrum_dft.png"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_path, dpi=150)
-    print(f"Fourier plot successfully saved to {output_path}")
+    plt.show()
     plt.close()
 
 """[10] Fourier Run"""
 
-#Transform(u_history, n_r, dt)
+Transform(u_history, n_r, dt)
 
 
 '''需要review：
