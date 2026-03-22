@@ -148,65 +148,102 @@ final_t = snapshot_times[-1]
 """[9] Fourier Functions"""
 
 def DFT(yn):
-
+    """
+    The Fourier Tranform function given by teacher
+    """
     N = len(yn)
+    # w is the fundamental angular frequency (2 * pi / N)
     w = 2 * np.pi / N
+    
+    # Initialize an array of complex numbers to store the frequency-domain output
     FTk = np.zeros(N, dtype=complex)
+    
+    # Outer loop iterates over each frequency bin 'k'
     for k in range(0, N):
+        # Inner loop performs the summation over each time step 'n'
         for n in range(0, N):
+            # Apply the standard DFT formula: X_k = sum(x_n * e^(-i * k * w * n))
             FTk[k] += np.exp(-1j * k * w * n) * yn[n]
+            
     return FTk
 
-def Transform(u_history, Nr, actual_dt, output_dir="outputs"):
-    # 选择观察点（半径中点）
+def Transform(u_history, Nr, dt, output_dir="outputs"):
+    """
+    Extracts a node's displacement history, applies downsampling to optimize 
+    computational efficiency, computes the frequency spectrum via DFT, and plots the results.
+    """
+    # Select an observation node at the middle radius, theta = 0
     r_idx = Nr // 2
     theta_idx = 0
     
-    # 提取时域信号。因为 u_history 已经被同学精简过，这里直接用即可，绝不能再降采样！
-    time_signal = u_history[r_idx, theta_idx, :]
+    # Extract the full time-domain signal for this specific spatial point
+    raw_time_signal = u_history[r_idx, theta_idx, :]
     
+    # --- Downsampling to optimize O(N^2) DFT calculation ---
+    # Extract every 20th point to significantly reduce the array size N.
+    # This reduces computational cost by a factor of 20^2 (400x faster) while still 
+    # capturing the low-frequency physical vibrations well within the Nyquist limit.
+    downsample_factor = 20
+    time_signal = raw_time_signal[::downsample_factor]
+    
+    # Calculate the new effective time step after downsampling
+    dt_new = dt * downsample_factor
+
     N = len(time_signal)
     print(f"Starting DFT calculation for {N} points. Please wait, this might take a moment...")
     
-    # 调用老师的 DFT 函数
+    # Perform the Discrete Fourier Transform
     u_fft = DFT(time_signal)
+    
+    # Extract the magnitude (amplitude) of the complex DFT output.
+    # We slice up to N // 2 because, for real-valued input signals, the second half 
+    # of the DFT spectrum is just a symmetric mirror (Nyquist-Shannon theorem).
     u_amplitude = np.abs(u_fft[:N // 2])
     
-    # --- 核心修改：真实采样率 ---
-    # 此时的 actual_dt 必须是数据点之间的真实物理时间跨度 (即 dt * save_every)
-    fs = 1.0 / actual_dt
+    # Calculate the new sampling frequency and generate the frequency x-axis (Hz)
+    fs = 1.0 / dt_new
     freq_axis = np.linspace(0, fs / 2, N // 2)
     
-    # --- 绘图部分完全保留你的原版逻辑 ---
+    # --- Plotting the Frequency Spectrum ---
     plt.figure(figsize=(10, 5))
     plt.plot(freq_axis, u_amplitude, label='Frequency Spectrum', linewidth=1.5)
     plt.title(rf'Frequency Spectrum at $r$={r_idx}, $\theta$={theta_idx}')
+    
+    # Limit the x-axis to focus on the dominant low-frequency mechanical vibrations
     plt.xlim(0, 1000)
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Amplitude')
     plt.grid(True)
     
+    # --- Peak Frequency Identification ---
+    # Create a copy of the amplitude array to search for the dominant frequency
     search_amplitude = u_amplitude.copy()
+    
+    # Ignore the DC component (0 Hz) which represents a static offset, not a vibration
     if len(search_amplitude) > 0:
         search_amplitude[0] = 0.0
+        
+    # Find the index of the highest peak and map it to the corresponding frequency
     dominant_idx = np.argmax(search_amplitude)
     dominant_freq = freq_axis[dominant_idx]
     
+    # Mark the dominant frequency on the plot with a red dot and a vertical dashed line
     plt.scatter(dominant_freq, u_amplitude[dominant_idx], color='red', zorder=5)
     plt.axvline(x=dominant_freq, color='red', linestyle='--', alpha=0.7,
                 label=rf'Dominant Frequency: {dominant_freq:.2f} Hz')
+    
     plt.legend(loc='upper right')
     
+    # Output the exact results to the console
     print(f"Dominant Frequency: {dominant_freq:.2f} Hz")
     print(f"Peak Amplitude: {u_amplitude[dominant_idx]:.4f}")
+    
     plt.show()
     plt.close()
 
 """[10] Fourier Run"""
 
-Transform(u_history, Nr, dt * save_every)
-
-
+Transform(u_history, n_r, dt)
 
 
 """[11] Output Paths"""
