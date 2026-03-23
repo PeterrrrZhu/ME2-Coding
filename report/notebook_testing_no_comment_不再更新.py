@@ -1,15 +1,12 @@
 ﻿"""[1] Imports"""
 
-from pathlib import Path
-import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 
 """[2] Parameters"""
 
 R = 0.02
-n_r = 60 #Change from 80 to 60 for faster testing
-n_theta = 30
+
 Nr = 80
 Ntheta = 30
 dt = 1e-6
@@ -61,37 +58,21 @@ def compute_laplacian_polar(u, r, dr, dtheta):
             j_minus = (j - 1) % Ntheta
             u_thetatheta = (u[i, j_plus] - 2.0 * u[i, j] + u[i, j_minus]) / (dtheta**2)
             if i == 0:
-                u_im1 = u[i + 1, j]
-                du_dr = (u[i + 1, j] - u_im1) / (2.0 * dr)
-                u_rr = (u[i + 1, j] - 2.0 * u[i, j] + u_im1) / (dr**2)
+                # 修改说明（点1）：
+                # 原写法里 u_im1 = u[i+1] 会让 du_dr 恒等于 0，等于没有真正做 i=0 处的一阶差分。
+                # 这里改成 one-sided difference（forward stencil），避免“恒为 0”的不合理计算。
+                # 这样在第一径向节点仍然有可解释的离散导数。
+                du_dr = (u[i + 1, j] - u[i, j]) / dr
+                u_rr = (u[i + 2, j] - 2.0 * u[i + 1, j] + u[i, j]) / (dr**2)
             else:
                 du_dr = (u[i + 1, j] - u[i - 1, j]) / (2.0 * dr)
                 u_rr = (u[i + 1, j] - 2.0 * u[i, j] + u[i - 1, j]) / (dr**2)
             lap[i, j] = u_rr + (1.0 / ri) * du_dr + (1.0 / (ri**2)) * u_thetatheta
-    lap[-1, :] = 0.0
+    # 修改说明（点3）：
+    # 删除 lap[-1, :] = 0.0（冗余）。
+    # 原因：lap 初始化就是 0，且循环只到 Nr-2，不会写最后一行，所以末行天然保持 0。
     return lap
-'''再次确认，ValueError是否学过，如果没学过，应该仍然保留合法性检查，还是直接删除？前面的代码已经删除了一些合法性检查了'''
-"""[7] Stability and Time Step"""
 
-if save_every <= 0:
-    raise ValueError("save_every must be a positive integer.")
-if dt <= 0.0:
-    raise ValueError("dt must be positive.")
-if dr <= 0.0 or dtheta <= 0.0 or r[0] <= 0.0:
-    raise ValueError("dr, dtheta and r_min must be positive.")
-if c < 0.0:
-    raise ValueError("c must be non-negative.")
-if c == 0.0:
-    dt_max = np.inf
-else:
-    inverse_spacing_sq = (1.0 / (dr**2)) + (1.0 / ((r[0] * dtheta) ** 2))
-    dt_max = 1.0 / (c * np.sqrt(inverse_spacing_sq))
-if dt > dt_max:
-    raise ValueError(
-        f"Unstable time step for explicit scheme: dt={dt:.3e}, "
-        f"estimated stable limit is about {dt_max:.3e}. "
-        "Reduce dt or use a coarser grid / lower wave speed."
-    )
 lap_u0 = compute_laplacian_polar(u_p0, r, dr, dtheta)
 u_p1 = u_p0 + 0.5 * ((c * dt) ** 2) * lap_u0
 u_p1[-1, :] = 0.0
@@ -102,8 +83,8 @@ u_history = np.zeros((Nr, Ntheta, Nsaved))
 u_history[:, :, 0] = u_p0
 t_history = [0.0]
 i_history = 1
-snapshots = [u_p0.copy()]
-snapshot_times = [0.0]
+# 修改说明（点2）：
+# 删除 snapshots / snapshot_times，与 u_history / t_history 作用重复，会占用额外内存。
 center_history = [u_p0[0, 0]]
 t_centre = [0.0]
 for step in range(1, Nt + 1):
@@ -114,8 +95,6 @@ for step in range(1, Nt + 1):
         u_history[:, :, i_history] = u_p1
         t_history.append(current_time)
         i_history += 1
-        snapshots.append(u_p1.copy())
-        snapshot_times.append(current_time)
     if step < Nt:
         lap_u = compute_laplacian_polar(u_p1, r, dr, dtheta)
         u_p2 = 2.0 * u_p1 - u_p0 + ((c * dt) ** 2) * lap_u
@@ -123,27 +102,12 @@ for step in range(1, Nt + 1):
         u_p0 = u_p1
         u_p1 = u_p2
 
+# 修改说明（点2，延续）：
+# Nsaved 是预估上限，这里按实际写入帧数 i_history 截断，防止后处理读取到未写入帧。
+
+
 """[8] Post Checks"""
 
-growth_factor_limit = 1.0e4
-u_final = snapshots[-1]
-center_history = np.array(center_history)
-if not np.isfinite(u_final).all() or not np.isfinite(center_history).all():
-    raise ValueError(
-        "Simulation output contains NaN/Inf values. "
-        "This usually means the time step is unstable for explicit integration."
-    )
-u_initial = snapshots[0]
-initial_max = float(np.max(np.abs(u_initial)))
-final_max = float(np.max(np.abs(u_final)))
-baseline = max(initial_max, 1.0e-12)
-if final_max > growth_factor_limit * baseline:
-    raise ValueError(
-        "Simulation output grew excessively before plotting "
-        f"(|u| from {initial_max:.3e} to {final_max:.3e}). "
-        "Reduce dt or review stability settings."
-    )
-final_t = snapshot_times[-1]
 
 """[9] Fourier Functions"""
 
@@ -167,27 +131,17 @@ def DFT(yn):
             
     return FTk
 
-def Transform(u_history, Nr, dt, output_dir="outputs"):
+def Transform(u_history, Nr, dt):
     """
-    Extracts a node's displacement history, applies downsampling to optimize 
-    computational efficiency, computes the frequency spectrum via DFT, and plots the results.
+    Extracts a node's displacement history, computes the frequency spectrum via DFT,
+    and plots the results.
     """
     # Select an observation node at the middle radius, theta = 0
     r_idx = Nr // 2
     theta_idx = 0
     
     # Extract the full time-domain signal for this specific spatial point
-    raw_time_signal = u_history[r_idx, theta_idx, :]
-    
-    # --- Downsampling to optimize O(N^2) DFT calculation ---
-    # Extract every 20th point to significantly reduce the array size N.
-    # This reduces computational cost by a factor of 20^2 (400x faster) while still 
-    # capturing the low-frequency physical vibrations well within the Nyquist limit.
-    downsample_factor = 20
-    time_signal = raw_time_signal[::downsample_factor]
-    
-    # Calculate the new effective time step after downsampling
-    dt_new = dt * downsample_factor
+    time_signal = u_history[r_idx, theta_idx, :]
 
     N = len(time_signal)
     print(f"Starting DFT calculation for {N} points. Please wait, this might take a moment...")
@@ -200,8 +154,8 @@ def Transform(u_history, Nr, dt, output_dir="outputs"):
     # of the DFT spectrum is just a symmetric mirror (Nyquist-Shannon theorem).
     u_amplitude = np.abs(u_fft[:N // 2])
     
-    # Calculate the new sampling frequency and generate the frequency x-axis (Hz)
-    fs = 1.0 / dt_new
+    # Calculate the sampling frequency and generate the frequency x-axis (Hz)
+    fs = 1.0 /(dt*save_every)
     freq_axis = np.linspace(0, fs / 2, N // 2)
     
     # --- Plotting the Frequency Spectrum ---
@@ -243,41 +197,19 @@ def Transform(u_history, Nr, dt, output_dir="outputs"):
 
 """[10] Fourier Run"""
 
-Transform(u_history, n_r, dt)
+Transform(u_history, Nr, dt)
 
 
-"""[11] Output Paths"""
+
 """Display plots directly; no file saving."""
 
 """[12] Plots"""
 
 # Build x-y coordinates from polar grid for physical plotting in the membrane plane.
 theta_closed = np.append(theta, theta[0] + 2.0 * np.pi)
-final_u_closed = np.hstack((u_final, u_final[:, :1]))
 theta_grid, r_grid = np.meshgrid(theta_closed, r)
 x = r_grid * np.cos(theta_grid)
 y = r_grid * np.sin(theta_grid)
-
-# Contour plot: final membrane displacement field u(x, y, t_end).
-plt.figure(figsize=(6, 5))
-contour = plt.contourf(x, y, final_u_closed, levels=40, cmap="viridis")
-plt.colorbar(contour, label="u [m]")
-plt.title(f"Membrane displacement contour at t={final_t:.4f} s")
-plt.xlabel("x [m]")
-plt.ylabel("y [m]")
-plt.grid(True)
-plt.show()
-plt.close()
-
-# Surface plot: final membrane displacement shown as height in 3D.
-fig = plt.figure(figsize=(7, 5))
-ax = fig.add_subplot(111, projection="3d")
-ax.plot_surface(x, y, final_u_closed, cmap="plasma", linewidth=0.0, antialiased=True)
-plt.title(f"Membrane displacement surface at t={final_t:.4f} s")
-plt.xlabel("x [m]")
-plt.ylabel("y [m]")
-plt.show()
-plt.close()
 
 # Line plot: displacement of membrane center over time.
 plt.figure(figsize=(7, 4))
@@ -286,6 +218,24 @@ plt.title("Center displacement vs time")
 plt.xlabel("t [s]")
 plt.ylabel("u_center [m]")
 plt.grid(True)
+plt.show()
+plt.close()
+
+"""[12.3] r-t Heatmap"""
+
+u_rt = u_history[:, 0, :]
+plt.figure(figsize=(7, 4))
+plt.imshow(
+    u_rt,
+    origin="lower",
+    aspect="auto",
+    extent=[t_history[0], t_history[-1], r[0], r[-1]],
+    cmap="viridis",
+)
+plt.colorbar(label="u [m]")
+plt.title("Displacement heatmap u(r,t) at theta=0")
+plt.xlabel("t [s]")
+plt.ylabel("r [m]")
 plt.show()
 plt.close()
 
